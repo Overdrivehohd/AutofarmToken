@@ -35,13 +35,13 @@ local Tab = Window:MakeTab({
     PremiumOnly = false
     })
 Tab:AddButton({
-    Name = "NOTE! WAIT EQUIP SWORD YOU WANT TO DUPE WAIT 5MIN",
+    Name = "NOTE! NOT USING ANTI CAN RESULT IN BAN!",
     Callback = function()
               print("button pressed")
       end
         })
 Tab:AddToggle({
-    Name = "Dupe Godly🔪",
+    Name = "bypass ban",
     Default = false,
     Callback = function(Value)
         print(Value)
