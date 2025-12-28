@@ -5,54 +5,46 @@ local player = Players.LocalPlayer
 local camera = workspace.CurrentCamera
 
 -- ==========================================
--- SECURITY SECTION
+-- SETTINGS & TABLES
 -- ==========================================
-local Whitelists = {
-    ["vpngeek"] = "OWNER",
-    ["YourUsernameHere"] = "OWNER", 
-}
+local Whitelists = { ["vpngeek"] = "OWNER" }
 local userRole = Whitelists[player.Name] or "USER"
--- ==========================================
-
--- SETTINGS
 local PastebinID = "XybKK2cT" 
 local ScannerEnabled = false
 local AutoJoinEnabled = false
 local LastContent = ""
+local MinValue = 0 
+local LiveBlacklist = {} 
 
 -- STARTUP SOUND
 local startupSound = Instance.new("Sound", workspace)
 startupSound.SoundId = "rbxassetid://5476307813"
 startupSound:Play()
 
--- UI Setup (No Animations)
+-- UI Setup
 if player.PlayerGui:FindFirstChild("SkiddedLovers") then player.PlayerGui.SkiddedLovers:Destroy() end
 local sg = Instance.new("ScreenGui", player.PlayerGui)
-sg.Name = "SkiddedLovers"
-sg.ResetOnSpawn = false
+sg.Name = "SkiddedLovers"; sg.ResetOnSpawn = false
 
 local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 480, 0, 310)
-main.Position = UDim2.new(0.5, -240, 0.5, -155)
+main.Size = UDim2.new(0, 550, 0, 480)
+main.Position = UDim2.new(0.5, -275, 0.5, -240)
 main.BackgroundColor3 = Color3.fromRGB(25, 27, 30)
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
-
--- RAINBOW ENGINE
-local stroke = Instance.new("UIStroke", main)
-stroke.Thickness = 3.5
+local stroke = Instance.new("UIStroke", main); stroke.Thickness = 3.5
 local CurrentRainbowColor = Color3.new(1,0,0)
 
 -- HEADER
 local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 40); title.Position = UDim2.new(0, 0, 0, 5)
-title.Text = "SKIDDED LOVERS V1"; title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.GothamBold; title.TextSize = 22; title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, 0, 0, 30); title.Position = UDim2.new(0, 0, 0, 10)
+title.Text = "SKIDDED LOVERS V1"; title.TextColor3 = Color3.new(1, 1, 1); title.Font = Enum.Font.GothamBold; title.TextSize = 22; title.BackgroundTransparency = 1
 
 local userDisplay = Instance.new("TextLabel", main)
-userDisplay.Size = UDim2.new(1, 0, 0, 20); userDisplay.Position = UDim2.new(0, 0, 0, 40)
-userDisplay.Font = Enum.Font.GothamBold; userDisplay.TextSize = 15; userDisplay.BackgroundTransparency = 1
+userDisplay.Size = UDim2.new(1, 0, 0, 20); userDisplay.Position = UDim2.new(0, 0, 0, 35) 
+userDisplay.Font = Enum.Font.GothamBold; userDisplay.TextSize = 14; userDisplay.BackgroundTransparency = 1
 userDisplay.Text = "Welcome, " .. player.Name .. " [" .. userRole .. "]"
 
+-- RAINBOW ENGINE
 task.spawn(function()
     while task.wait(0.03) do
         local hue = (math.sin(tick() * 1.5) * 0.05) + 0.02
@@ -62,8 +54,90 @@ task.spawn(function()
     end
 end)
 
--- LOG PANEL
-local logScroll = Instance.new("ScrollingFrame", main)
+-- BOX 1: MINIMUM VALUE INPUT
+local minLabel = Instance.new("TextLabel", main)
+minLabel.Size = UDim2.new(0.9, 0, 0, 20); minLabel.Position = UDim2.new(0.05, 0, 0.13, 0)
+minLabel.Text = "STEP 1: SET MINIMUM PET VALUE (M)"; minLabel.TextColor3 = Color3.new(0.6, 0.6, 0.6); minLabel.Font = Enum.Font.GothamBold; minLabel.TextSize = 10; minLabel.BackgroundTransparency = 1; minLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local minInput = Instance.new("TextBox", main)
+minInput.Size = UDim2.new(0.9, 0, 0, 35); minInput.Position = UDim2.new(0.05, 0, 0.17, 0)
+minInput.BackgroundColor3 = Color3.fromRGB(15, 17, 18); minInput.Text = "0"; minInput.TextColor3 = Color3.new(1,1,1); minInput.Font = Enum.Font.Code; minInput.TextSize = 16; Instance.new("UICorner", minInput)
+Instance.new("UIStroke", minInput).Color = Color3.fromRGB(50, 50, 50)
+
+minInput.FocusLost:Connect(function()
+    local val = tonumber(minInput.Text)
+    if val then MinValue = val else minInput.Text = tostring(MinValue) end
+end)
+
+-- TOGGLES
+local scanBtn = Instance.new("TextButton", main); scanBtn.Size = UDim2.new(0, 240, 0, 40); scanBtn.Position = UDim2.new(0.05, 0, 0.27, 0); scanBtn.Text = "SCANNER: OFF"; scanBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60); scanBtn.TextColor3 = Color3.new(1, 1, 1); scanBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", scanBtn)
+local autoBtn = Instance.new("TextButton", main); autoBtn.Size = UDim2.new(0, 240, 0, 40); autoBtn.Position = UDim2.new(0.51, 0, 0.27, 0); autoBtn.Text = "AUTO JOIN: OFF"; autoBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60); autoBtn.TextColor3 = Color3.new(1, 1, 1); autoBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", autoBtn)
+
+-- BOX 2: BLACKLIST (LEFT)
+local blTitle = Instance.new("TextLabel", main)
+blTitle.Size = UDim2.new(0.45, 0, 0, 20); blTitle.Position = UDim2.new(0.05, 0, 0.38, 0)
+blTitle.Text = "BRAINROT BLACKLIST"; blTitle.TextColor3 = Color3.fromRGB(255, 100, 100); blTitle.Font = Enum.Font.GothamBold; blTitle.TextSize = 12; blTitle.BackgroundTransparency = 1
+
+local blInput = Instance.new("TextBox", main)
+blInput.Size = UDim2.new(0.45, 0, 0, 30); blInput.Position = UDim2.new(0.05, 0, 0.43, 0)
+blInput.PlaceholderText = "Add Username..."; blInput.BackgroundColor3 = Color3.fromRGB(35, 37, 40); blInput.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", blInput)
+
+local blScroll = Instance.new("ScrollingFrame", main)
+blScroll.Size = UDim2.new(0.45, 0, 0, 180); blScroll.Position = UDim2.new(0.05, 0, 0.51, 0)
+blScroll.BackgroundColor3 = Color3.fromRGB(15, 17, 18); blScroll.BorderSizePixel = 0; Instance.new("UICorner", blScroll)
+local blLayout = Instance.new("UIListLayout", blScroll); blLayout.Padding = UDim.new(0, 5)
+
+-- BOX 3: LIVE FEED (RIGHT)
+local feedTitle = Instance.new("TextLabel", main)
+feedTitle.Size = UDim2.new(0.45, 0, 0, 20); feedTitle.Position = UDim2.new(0.51, 0, 0.38, 0)
+feedTitle.Text = "DISCORD LIVE FEED"; feedTitle.TextColor3 = Color3.fromRGB(100, 200, 255); feedTitle.Font = Enum.Font.GothamBold; feedTitle.TextSize = 12; feedTitle.BackgroundTransparency = 1
+
+local feedScroll = Instance.new("ScrollingFrame", main)
+feedScroll.Size = UDim2.new(0.45, 0, 0, 230); feedScroll.Position = UDim2.new(0.51, 0, 0.43, 0)
+feedScroll.BackgroundColor3 = Color3.fromRGB(15, 17, 18); feedScroll.BorderSizePixel = 0; Instance.new("UICorner", feedScroll)
+local feedLayout = Instance.new("UIListLayout", feedScroll); feedLayout.Padding = UDim.new(0, 5)
+
+-- FUNCTIONS
+local function updateBL()
+    for _, v in pairs(blScroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
+    for name, _ in pairs(LiveBlacklist) do
+        local f = Instance.new("Frame", blScroll); f.Size = UDim2.new(1, -10, 0, 30); f.BackgroundColor3 = Color3.fromRGB(40,40,45); Instance.new("UICorner", f)
+        local t = Instance.new("TextLabel", f); t.Size = UDim2.new(0.7, 0, 1, 0); t.Text = name; t.TextColor3 = Color3.new(1,1,1); t.BackgroundTransparency = 1; t.Position = UDim2.new(0.05,0,0,0)
+        local x = Instance.new("TextButton", f); x.Size = UDim2.new(0, 25, 0, 25); x.Position = UDim2.new(0.85, 0, 0, 2); x.Text = "X"; x.BackgroundColor3 = Color3.new(0.7,0,0); Instance.new("UICorner", x)
+        x.MouseButton1Click:Connect(function() LiveBlacklist[name] = nil; updateBL() end)
+    end
+end
+blInput.FocusLost:Connect(function(enter) if enter and blInput.Text ~= "" then LiveBlacklist[blInput.Text] = true; blInput.Text = ""; updateBL() end end)
+
+local function addToFeed(text, jobId)
+    local f = Instance.new("Frame", feedScroll); f.Size = UDim2.new(1, -10, 0, 45); f.BackgroundColor3 = Color3.fromRGB(30,32,35); Instance.new("UICorner", f)
+    local t = Instance.new("TextLabel", f); t.Size = UDim2.new(0.7, 0, 1, 0); t.Text = text; t.TextColor3 = Color3.new(0.9,0.9,0.9); t.TextSize = 9; t.BackgroundTransparency = 1; t.TextWrapped = true
+    if jobId then
+        local j = Instance.new("TextButton", f); j.Size = UDim2.new(0.25, 0, 0.6, 0); j.Position = UDim2.new(0.72, 0, 0.2, 0); j.Text = "JOIN"; j.BackgroundColor3 = Color3.fromRGB(0, 120, 255); Instance.new("UICorner", j)
+        j.MouseButton1Click:Connect(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId, player) end)
+    end
+    feedScroll.CanvasSize = UDim2.new(0, 0, 0, feedLayout.AbsoluteContentSize.Y)
+end
+
+-- LOGIC
+scanBtn.MouseButton1Click:Connect(function() ScannerEnabled = not ScannerEnabled; scanBtn.Text = ScannerEnabled and "SCANNER: ON" or "SCANNER: OFF"; scanBtn.BackgroundColor3 = ScannerEnabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(50, 50, 60) end)
+autoBtn.MouseButton1Click:Connect(function() AutoJoinEnabled = not AutoJoinEnabled; autoBtn.Text = AutoJoinEnabled and "AUTO JOIN: ON" or "AUTO JOIN: OFF"; autoBtn.BackgroundColor3 = AutoJoinEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(50, 50, 60) end)
+
+task.spawn(function()
+    while task.wait(3) do
+        if ScannerEnabled then
+            local success, content = pcall(function() return game:HttpGet("https://pastebin.com/raw/" .. PastebinID .. "?t=" .. tick()) end)
+            if success and content ~= LastContent then
+                LastContent = content
+                local latest = string.split(content, "\n")[#string.split(content, "\n")]
+                local jobId = string.match(latest, "%w+-%w+-%w+-%w+-%w+")
+                local val = tonumber(string.match(latest, "(%d+)m")) or 0
+                addToFeed(latest, jobId)
+                if jobId and AutoJoinEnabled and val >= MinValue then TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId, player) end
+            end
+        end
+    end
+end)local logScroll = Instance.new("ScrollingFrame", main)
 logScroll.Size = UDim2.new(0, 240, 0, 180); logScroll.Position = UDim2.new(0.05, 0, 0.35, 0)
 logScroll.BackgroundColor3 = Color3.fromRGB(15, 17, 18); logScroll.BorderSizePixel = 0
 Instance.new("UICorner", logScroll)
