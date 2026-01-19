@@ -1,140 +1,171 @@
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
-local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local player = Players.LocalPlayer
-local camera = workspace.CurrentCamera
 
--- ==========================================
--- SETTINGS & TABLES
--- ==========================================
-local Whitelists = { ["vpngeek"] = "OWNER" }
-local userRole = Whitelists[player.Name] or "USER"
-local PastebinID = "XybKK2cT" 
-local ScannerEnabled = false
-local AutoJoinEnabled = false
-local LastContent = ""
-local MinValue = 0 
-local LiveBlacklist = {} 
-
--- STARTUP SOUND
-local startupSound = Instance.new("Sound", workspace)
-startupSound.SoundId = "rbxassetid://5476307813"
-startupSound:Play()
-
--- UI Setup
-if player.PlayerGui:FindFirstChild("SkiddedLovers") then player.PlayerGui.SkiddedLovers:Destroy() end
-local sg = Instance.new("ScreenGui", player.PlayerGui)
-sg.Name = "SkiddedLovers"; sg.ResetOnSpawn = false
-
-local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 550, 0, 480)
-main.Position = UDim2.new(0.5, -275, 0.5, -240)
-main.BackgroundColor3 = Color3.fromRGB(25, 27, 30)
-Instance.new("UICorner", main).CornerRadius = UDim.new(0, 15)
-local stroke = Instance.new("UIStroke", main); stroke.Thickness = 3.5
-local CurrentRainbowColor = Color3.new(1,0,0)
-
--- HEADER
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 30); title.Position = UDim2.new(0, 0, 0, 10)
-title.Text = "SKIDDED LOVERS V1"; title.TextColor3 = Color3.new(1, 1, 1); title.Font = Enum.Font.GothamBold; title.TextSize = 22; title.BackgroundTransparency = 1
-
-local userDisplay = Instance.new("TextLabel", main)
-userDisplay.Size = UDim2.new(1, 0, 0, 20); userDisplay.Position = UDim2.new(0, 0, 0, 35) 
-userDisplay.Font = Enum.Font.GothamBold; userDisplay.TextSize = 14; userDisplay.BackgroundTransparency = 1
-userDisplay.Text = "Welcome, " .. player.Name .. " [" .. userRole .. "]"
-
--- RAINBOW ENGINE
+-- [[ 1. FIREBASE TOKEN FETCH (NON-BLOCKING) ]]
+local DISCORD_TOKEN = ""
 task.spawn(function()
-    while task.wait(0.03) do
-        local hue = (math.sin(tick() * 1.5) * 0.05) + 0.02
-        CurrentRainbowColor = Color3.fromHSV(hue < 0 and hue + 1 or hue, 0.8, 1)
-        stroke.Color = CurrentRainbowColor
-        userDisplay.TextColor3 = CurrentRainbowColor
+    local firebase_url = "https://prpjectlol-default-rtdb.firebaseio.com/token.json"
+    local success, result = pcall(function() return game:HttpGet(firebase_url) end)
+    if success and result ~= "null" then
+        -- Removes quotes and whitespace from the raw Firebase response
+        DISCORD_TOKEN = result:gsub('"', ''):gsub("%s+", "")
+        print("✅ Discord Token synced from Firebase.")
+    else
+        warn("⚠️ Failed to sync token from Firebase.")
     end
 end)
 
--- BOX 1: MINIMUM VALUE INPUT
-local minLabel = Instance.new("TextLabel", main)
-minLabel.Size = UDim2.new(0.9, 0, 0, 20); minLabel.Position = UDim2.new(0.05, 0, 0.13, 0)
-minLabel.Text = "STEP 1: SET MINIMUM PET VALUE (M)"; minLabel.TextColor3 = Color3.new(0.6, 0.6, 0.6); minLabel.Font = Enum.Font.GothamBold; minLabel.TextSize = 10; minLabel.BackgroundTransparency = 1; minLabel.TextXAlignment = Enum.TextXAlignment.Left
+-- [[ 2. KEY SYSTEM CONFIG ]]
+local RAW_URL = "https://raw.githubusercontent.com/Overdrivehohd/key.txt/refs/heads/main/OHIO?t=" .. tick()
+local KeyEntered = false
 
-local minInput = Instance.new("TextBox", main)
-minInput.Size = UDim2.new(0.9, 0, 0, 35); minInput.Position = UDim2.new(0.05, 0, 0.17, 0)
-minInput.BackgroundColor3 = Color3.fromRGB(15, 17, 18); minInput.Text = "0"; minInput.TextColor3 = Color3.new(1,1,1); minInput.Font = Enum.Font.Code; minInput.TextSize = 16; Instance.new("UICorner", minInput)
-Instance.new("UIStroke", minInput).Color = Color3.fromRGB(50, 50, 50)
-
-minInput.FocusLost:Connect(function()
-    local val = tonumber(minInput.Text)
-    if val then MinValue = val else minInput.Text = tostring(MinValue) end
-end)
-
--- TOGGLES
-local scanBtn = Instance.new("TextButton", main); scanBtn.Size = UDim2.new(0, 240, 0, 40); scanBtn.Position = UDim2.new(0.05, 0, 0.27, 0); scanBtn.Text = "SCANNER: OFF"; scanBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60); scanBtn.TextColor3 = Color3.new(1, 1, 1); scanBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", scanBtn)
-local autoBtn = Instance.new("TextButton", main); autoBtn.Size = UDim2.new(0, 240, 0, 40); autoBtn.Position = UDim2.new(0.51, 0, 0.27, 0); autoBtn.Text = "AUTO JOIN: OFF"; autoBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60); autoBtn.TextColor3 = Color3.new(1, 1, 1); autoBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", autoBtn)
-
--- BOX 2: BLACKLIST (LEFT)
-local blTitle = Instance.new("TextLabel", main)
-blTitle.Size = UDim2.new(0.45, 0, 0, 20); blTitle.Position = UDim2.new(0.05, 0, 0.38, 0)
-blTitle.Text = "BRAINROT BLACKLIST"; blTitle.TextColor3 = Color3.fromRGB(255, 100, 100); blTitle.Font = Enum.Font.GothamBold; blTitle.TextSize = 12; blTitle.BackgroundTransparency = 1
-
-local blInput = Instance.new("TextBox", main)
-blInput.Size = UDim2.new(0.45, 0, 0, 30); blInput.Position = UDim2.new(0.05, 0, 0.43, 0)
-blInput.PlaceholderText = "Add Username..."; blInput.BackgroundColor3 = Color3.fromRGB(35, 37, 40); blInput.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", blInput)
-
-local blScroll = Instance.new("ScrollingFrame", main)
-blScroll.Size = UDim2.new(0.45, 0, 0, 180); blScroll.Position = UDim2.new(0.05, 0, 0.51, 0)
-blScroll.BackgroundColor3 = Color3.fromRGB(15, 17, 18); blScroll.BorderSizePixel = 0; Instance.new("UICorner", blScroll)
-local blLayout = Instance.new("UIListLayout", blScroll); blLayout.Padding = UDim.new(0, 5)
-
--- BOX 3: LIVE FEED (RIGHT)
-local feedTitle = Instance.new("TextLabel", main)
-feedTitle.Size = UDim2.new(0.45, 0, 0, 20); feedTitle.Position = UDim2.new(0.51, 0, 0.38, 0)
-feedTitle.Text = "DISCORD LIVE FEED"; feedTitle.TextColor3 = Color3.fromRGB(100, 200, 255); feedTitle.Font = Enum.Font.GothamBold; feedTitle.TextSize = 12; feedTitle.BackgroundTransparency = 1
-
-local feedScroll = Instance.new("ScrollingFrame", main)
-feedScroll.Size = UDim2.new(0.45, 0, 0, 230); feedScroll.Position = UDim2.new(0.51, 0, 0.43, 0)
-feedScroll.BackgroundColor3 = Color3.fromRGB(15, 17, 18); feedScroll.BorderSizePixel = 0; Instance.new("UICorner", feedScroll)
-local feedLayout = Instance.new("UIListLayout", feedScroll); feedLayout.Padding = UDim.new(0, 5)
-
--- FUNCTIONS
-local function updateBL()
-    for _, v in pairs(blScroll:GetChildren()) do if v:IsA("Frame") then v:Destroy() end end
-    for name, _ in pairs(LiveBlacklist) do
-        local f = Instance.new("Frame", blScroll); f.Size = UDim2.new(1, -10, 0, 30); f.BackgroundColor3 = Color3.fromRGB(40,40,45); Instance.new("UICorner", f)
-        local t = Instance.new("TextLabel", f); t.Size = UDim2.new(0.7, 0, 1, 0); t.Text = name; t.TextColor3 = Color3.new(1,1,1); t.BackgroundTransparency = 1; t.Position = UDim2.new(0.05,0,0,0)
-        local x = Instance.new("TextButton", f); x.Size = UDim2.new(0, 25, 0, 25); x.Position = UDim2.new(0.85, 0, 0, 2); x.Text = "X"; x.BackgroundColor3 = Color3.new(0.7,0,0); Instance.new("UICorner", x)
-        x.MouseButton1Click:Connect(function() LiveBlacklist[name] = nil; updateBL() end)
+local function GetKeyData()
+    local success, result = pcall(function() return game:HttpGet(RAW_URL) end)
+    if success then
+        local decodeSuccess, decoded = pcall(function() return HttpService:JSONDecode(result) end)
+        return decodeSuccess and decoded or nil
     end
-end
-blInput.FocusLost:Connect(function(enter) if enter and blInput.Text ~= "" then LiveBlacklist[blInput.Text] = true; blInput.Text = ""; updateBL() end end)
-
-local function addToFeed(text, jobId)
-    local f = Instance.new("Frame", feedScroll); f.Size = UDim2.new(1, -10, 0, 45); f.BackgroundColor3 = Color3.fromRGB(30,32,35); Instance.new("UICorner", f)
-    local t = Instance.new("TextLabel", f); t.Size = UDim2.new(0.7, 0, 1, 0); t.Text = text; t.TextColor3 = Color3.new(0.9,0.9,0.9); t.TextSize = 9; t.BackgroundTransparency = 1; t.TextWrapped = true
-    if jobId then
-        local j = Instance.new("TextButton", f); j.Size = UDim2.new(0.25, 0, 0.6, 0); j.Position = UDim2.new(0.72, 0, 0.2, 0); j.Text = "JOIN"; j.BackgroundColor3 = Color3.fromRGB(0, 120, 255); Instance.new("UICorner", j)
-        j.MouseButton1Click:Connect(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId, player) end)
-    end
-    feedScroll.CanvasSize = UDim2.new(0, 0, 0, feedLayout.AbsoluteContentSize.Y)
+    return nil
 end
 
--- LOGIC
-scanBtn.MouseButton1Click:Connect(function() ScannerEnabled = not ScannerEnabled; scanBtn.Text = ScannerEnabled and "SCANNER: ON" or "SCANNER: OFF"; scanBtn.BackgroundColor3 = ScannerEnabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(50, 50, 60) end)
-autoBtn.MouseButton1Click:Connect(function() AutoJoinEnabled = not AutoJoinEnabled; autoBtn.Text = AutoJoinEnabled and "AUTO JOIN: ON" or "AUTO JOIN: OFF"; autoBtn.BackgroundColor3 = AutoJoinEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(50, 50, 60) end)
+-- [[ 3. LOGIN UI ]]
+local ksg = Instance.new("ScreenGui", game:GetService("CoreGui"))
+local kmain = Instance.new("Frame", ksg); kmain.Size = UDim2.new(0, 300, 0, 180); kmain.Position = UDim2.new(0.5, -150, 0.5, -90); kmain.BackgroundColor3 = Color3.fromRGB(20, 20, 25); kmain.Active = true; Instance.new("UICorner", kmain)
+
+local kstroke = Instance.new("UIStroke", kmain); kstroke.Thickness = 2; kstroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+local ktitle = Instance.new("TextLabel", kmain); ktitle.Size = UDim2.new(1, 0, 0, 60); ktitle.Text = "Welcome, " .. player.DisplayName; ktitle.TextColor3 = Color3.new(1,1,1); ktitle.Font = "GothamBold"; ktitle.BackgroundTransparency = 1; ktitle.TextSize = 16
 
 task.spawn(function()
-    while task.wait(3) do
-        if ScannerEnabled then
-            local success, content = pcall(function() return game:HttpGet("https://pastebin.com/raw/" .. PastebinID .. "?t=" .. tick()) end)
-            if success and content ~= LastContent then
-                LastContent = content
-                local latest = string.split(content, "\n")[#string.split(content, "\n")]
-                local jobId = string.match(latest, "%w+-%w+-%w+-%w+-%w+")
-                local val = tonumber(string.match(latest, "(%d+)m")) or 0
-                addToFeed(latest, jobId)
-                if jobId and AutoJoinEnabled and val >= MinValue then TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId, player) end
-            end
+    while kmain.Parent do
+        for i = 0, 1, 0.005 do
+            local color = Color3.fromHSV(i, 0.8, 1)
+            ktitle.TextColor3 = color
+            kstroke.Color = color
+            task.wait(0.01)
         end
+    end
+end)
+
+local kinput = Instance.new("TextBox", kmain); kinput.Size = UDim2.new(0.8, 0, 0, 35); kinput.Position = UDim2.new(0.1, 0, 0.4, 0); kinput.PlaceholderText = "ENTER KEY..."; kinput.Text = ""; kinput.BackgroundColor3 = Color3.fromRGB(30, 30, 35); kinput.TextColor3 = Color3.new(1, 1, 1); kinput.Font = "GothamBold"; kinput.TextSize = 12; Instance.new("UICorner", kinput)
+local vbtn = Instance.new("TextButton", kmain); vbtn.Size = UDim2.new(0.8, 0, 0, 35); vbtn.Position = UDim2.new(0.1, 0, 0.68, 0); vbtn.Text = "LOGIN"; vbtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255); vbtn.TextColor3 = Color3.new(1, 1, 1); vbtn.Font = "GothamBold"; Instance.new("UICorner", vbtn)
+
+vbtn.MouseButton1Click:Connect(function()
+    vbtn.Text = "Checking..."
+    local allKeys = GetKeyData()
+    if allKeys and allKeys[kinput.Text] then
+        vbtn.Text = "SUCCESS!"; vbtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+        task.wait(0.5); KeyEntered = true; ksg:Destroy()
+    else
+        player:Kick("Buy a new key jew!💀")
+    end
+end)
+
+repeat task.wait() until KeyEntered == true
+
+-- [[ 4. SCANNER SCRIPT ]]
+local CHANNEL_ID = "1426479580784361482" 
+local SETTINGS_FILE = "SkiddedSettings.json"
+local SCAN_DELAY = 0.5 
+local ALERT_SOUND_ID = "rbxassetid://5476307813"
+
+local ScannerEnabled, AutoJoinEnabled, MinValue, TotalFound, Blacklist, Whitelist, LoopingJID, LogHistory = false, false, 0, 0, {}, {}, nil, {}
+
+local function SaveSettings()
+    local data = {Priority = Whitelist, Blacklist = Blacklist, MinVal = MinValue}
+    local success, encoded = pcall(function() return HttpService:JSONEncode(data) end)
+    if success and writefile then writefile(SETTINGS_FILE, encoded) end
+end
+
+local function LoadSettings()
+    if isfile and isfile(SETTINGS_FILE) then
+        local success, content = pcall(function() return readfile(SETTINGS_FILE) end)
+        if success then
+            local decoded = HttpService:JSONDecode(content)
+            Whitelist = decoded.Priority or {}; Blacklist = decoded.Blacklist or {}; MinValue = decoded.MinVal or 0
+        end
+    end
+end
+LoadSettings()
+
+local sg = Instance.new("ScreenGui", game:GetService("CoreGui")); sg.Name = "SkiddedLoversV1"
+local main = Instance.new("Frame", sg); main.Size = UDim2.new(0, 380, 0, 450); main.Position = UDim2.new(0.5, -190, 0.5, -225); main.BackgroundColor3 = Color3.fromRGB(25, 26, 30); main.Active = true; Instance.new("UICorner", main).CornerRadius = UDim.new(0, 8); Instance.new("UIStroke", main).Color = Color3.fromRGB(255, 50, 80)
+
+-- Draggable Logic
+local dragging, dragStart, startPos
+main.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true; dragStart = input.Position; startPos = main.Position end end)
+UserInputService.InputChanged:Connect(function(input) if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then local delta = input.Position - dragStart; main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
+UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+
+local counter = Instance.new("TextLabel", main); counter.Size = UDim2.new(1,0,0,35); counter.Text = "🐾 FOUND: 0"; counter.TextColor3 = Color3.fromRGB(0, 200, 255); counter.Font = "GothamBold"; counter.BackgroundTransparency = 1; counter.TextSize = 12
+local minInput = Instance.new("TextBox", main); minInput.Size = UDim2.new(0.9, 0, 0, 35); minInput.Position = UDim2.new(0.05, 0, 0, 45); minInput.PlaceholderText = "Min Value: " .. MinValue .. "M"; minInput.BackgroundColor3 = Color3.fromRGB(15, 16, 20); minInput.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", minInput)
+minInput.FocusLost:Connect(function() MinValue = tonumber(minInput.Text:match("%d+%.?%d*")) or MinValue; SaveSettings(); minInput.PlaceholderText = "Min: " .. MinValue .. "M"; minInput.Text = "" end)
+
+local blInput = Instance.new("TextBox", main); blInput.Size = UDim2.new(0.43, 0, 0, 30); blInput.Position = UDim2.new(0.05, 0, 0, 135); blInput.PlaceholderText = "Add Blacklist"; blInput.BackgroundColor3 = Color3.fromRGB(15, 16, 20); blInput.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", blInput)
+local wlInput = Instance.new("TextBox", main); wlInput.Size = UDim2.new(0.43, 0, 0, 30); wlInput.Position = UDim2.new(0.52, 0, 0, 135); wlInput.PlaceholderText = "Add Priority"; wlInput.BackgroundColor3 = Color3.fromRGB(15, 16, 20); wlInput.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", wlInput)
+blInput.FocusLost:Connect(function(e) if e and blInput.Text ~= "" then table.insert(Blacklist, blInput.Text:lower()); SaveSettings(); blInput.Text = "" end end)
+wlInput.FocusLost:Connect(function(e) if e and wlInput.Text ~= "" then table.insert(Whitelist, wlInput.Text:lower()); SaveSettings(); wlInput.Text = "" end end)
+
+local scanBtn = Instance.new("TextButton", main); scanBtn.Size = UDim2.new(0.43, 0, 0, 35); scanBtn.Position = UDim2.new(0.05, 0, 0, 90); scanBtn.Text = "SCAN: OFF"; scanBtn.BackgroundColor3 = Color3.fromRGB(40, 41, 45); scanBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", scanBtn)
+local autoBtn = Instance.new("TextButton", main); autoBtn.Size = UDim2.new(0.43, 0, 0, 35); autoBtn.Position = UDim2.new(0.52, 0, 0, 90); autoBtn.Text = "AUTO: OFF"; autoBtn.BackgroundColor3 = Color3.fromRGB(40, 41, 45); autoBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", autoBtn)
+
+local feedScroll = Instance.new("ScrollingFrame", main); feedScroll.Size = UDim2.new(0.9, 0, 0, 260); feedScroll.Position = UDim2.new(0.05, 0, 0, 175); feedScroll.BackgroundColor3 = Color3.fromRGB(10, 11, 15); feedScroll.BorderSizePixel = 0; Instance.new("UICorner", feedScroll)
+local feedLayout = Instance.new("UIListLayout", feedScroll); feedLayout.Padding = UDim.new(0, 4); feedLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function addToFeed(petName, val, jid, pCount, isPriority)
+    if isPriority then local s = Instance.new("Sound", game:GetService("SoundService")); s.SoundId = ALERT_SOUND_ID; s.Volume = 2; s:Play(); game:GetService("Debris"):AddItem(s, 5) end
+    local f = Instance.new("Frame", feedScroll); f.Size = UDim2.new(1, -10, 0, 45); f.BackgroundColor3 = isPriority and Color3.fromRGB(0, 70, 35) or Color3.fromRGB(35, 36, 42); Instance.new("UICorner", f); f.LayoutOrder = isPriority and -1 or 1 
+    local t = Instance.new("TextLabel", f); t.Size = UDim2.new(0.55, 0, 1, 0); t.Position = UDim2.new(0.05, 0, 0, 0); t.Text = petName .. " (" .. val .. "M) [" .. pCount .. "]"; t.TextColor3 = Color3.new(1,1,1); t.BackgroundTransparency = 1; t.TextXAlignment = "Left"; t.TextSize = 8; t.TextWrapped = true
+    local j = Instance.new("TextButton", f); j.Size = UDim2.new(0.15, 0, 0.7, 0); j.Position = UDim2.new(0.62, 0, 0.15, 0); j.Text = "JOIN"; j.BackgroundColor3 = Color3.fromRGB(0, 120, 255); j.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", j); j.TextSize = 10
+    local lp = Instance.new("TextButton", f); lp.Size = UDim2.new(0.18, 0, 0.7, 0); lp.Position = UDim2.new(0.79, 0, 0.15, 0); lp.Text = "LOOP"; lp.BackgroundColor3 = Color3.fromRGB(80, 80, 80); lp.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", lp); lp.TextSize = 10
+    j.MouseButton1Click:Connect(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, jid, player) end)
+    lp.MouseButton1Click:Connect(function() if LoopingJID == jid then LoopingJID = nil; lp.Text = "LOOP"; lp.BackgroundColor3 = Color3.fromRGB(80, 80, 80) else LoopingJID = jid; lp.Text = "ACTIVE"; lp.BackgroundColor3 = Color3.fromRGB(200, 0, 0) end end)
+    feedScroll.CanvasSize = UDim2.new(0, 0, 0, feedLayout.AbsoluteContentSize.Y); TotalFound = TotalFound + 1; counter.Text = "🐾 FOUND: " .. TotalFound
+end
+
+task.spawn(function() while true do if LoopingJID then pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, LoopingJID, player) end) end task.wait(1.5) end end)
+scanBtn.MouseButton1Click:Connect(function() ScannerEnabled = not ScannerEnabled; scanBtn.Text = ScannerEnabled and "SCAN: ON" or "SCAN: OFF"; scanBtn.BackgroundColor3 = ScannerEnabled and Color3.fromRGB(0, 150, 80) or Color3.fromRGB(40, 41, 45) end)
+autoBtn.MouseButton1Click:Connect(function() AutoJoinEnabled = not AutoJoinEnabled; autoBtn.Text = AutoJoinEnabled and "AUTO: ON" or "AUTO: OFF"; autoBtn.BackgroundColor3 = AutoJoinEnabled and Color3.fromRGB(0, 150, 80) or Color3.fromRGB(40, 41, 45) end)
+
+task.spawn(function()
+    while true do
+        if ScannerEnabled and DISCORD_TOKEN ~= "" then
+            pcall(function()
+                local req = (request or http_request or (http and http.request))
+                local res = req({Url = "https://corsproxy.io/?https://discord.com/api/v9/channels/" .. CHANNEL_ID .. "/messages?limit=10", Method = "GET", Headers = { ["Authorization"] = DISCORD_TOKEN }})
+                if res and res.StatusCode == 200 then
+                    local messages = HttpService:JSONDecode(res.Body)
+                    for i = #messages, 1, -1 do
+                        local data = messages[i]
+                        if data and not LogHistory[data.id] then
+                            LogHistory[data.id] = true
+                            local blob = ""
+                            if data.embeds and data.embeds[1] then
+                                local em = data.embeds[1]; blob = (em.title or "") .. "\n" .. (em.description or "")
+                                for _, v in pairs(em.fields or {}) do blob = blob .. "\n" .. (v.name or "") .. " " .. (v.value or "") end
+                            end
+                            local jid = string.match(blob, "[%w%-]+%-%w+%-%w+%-%w+%-%w+")
+                            local val = tonumber(string.match(blob, "(%d+%.?%d*)M")) or 0
+                            local petName = blob:match("Name:[%s\n]*([^🐾💎\n]+)") or "Pet"
+                            local pCount = blob:match("Players:[%s\n]*(%d+/%d+)") or "??/??"
+                            local isPriority = false
+                            for _, w in pairs(Whitelist) do if string.find(petName:lower(), w) then isPriority = true break end end
+                            local isBl = false
+                            for _, b in pairs(Blacklist) do if string.find(petName:lower(), b) then isBl = true break end end
+                            if jid and (isPriority or (not isBl and val >= MinValue)) then
+                                addToFeed(petName, val, jid, pCount, isPriority)
+                                if (AutoJoinEnabled or isPriority) and game.JobId ~= jid then TeleportService:TeleportToPlaceInstance(game.PlaceId, jid, player) end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(SCAN_DELAY)
     end
 end)
